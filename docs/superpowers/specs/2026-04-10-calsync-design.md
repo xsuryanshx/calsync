@@ -147,7 +147,11 @@ sync_state (
 )
 ```
 
-**Local phase seed:** one `users` row with `id=1`. All other tables reference it. Multi-user migration is a no-op later because the column already exists.
+**Local phase seed:** a boot-time migration hook (`lib/db/client.ts` initializer) ensures exactly one `users` row with `id=1` exists, inserting it on first run. All other tables reference it via `user_id=1` hardcoded in the domain layer. Multi-user migration is a no-op later because the column already exists.
+
+**Token storage nuance:** only `encrypted_refresh_token` is encrypted at rest. `access_token` is short-lived (1 hour) and stored as plaintext; on expiry, `GoogleCalendarClient` refreshes it using the decrypted refresh token and writes the new access token back.
+
+**`sync_state` table:** reserved for future incremental sync via Google's `syncToken`. Not written or read in MVP — table exists so the migration doesn't need to change later.
 
 **Declined filter:** applied at *read* time (`WHERE response_status != 'declined'`), not write time — keeps raw data intact and lets us revisit filter rules without re-syncing.
 
@@ -267,7 +271,7 @@ UI re-renders week grid from EventStore
 
 | Scenario | Handling |
 |---|---|
-| Refresh token revoked / invalid_grant | `GoogleCalendarClient` throws typed `ReauthRequired(accountId)`; sync marks that account's result `{status: 'reauth_required'}`; `AccountBadge` shows "Reconnect" CTA; cache untouched |
+| Refresh token revoked / invalid_grant | `GoogleCalendarClient` throws typed `ReauthRequired(accountId)`; sync marks that account's result `{status: 'reauth_required'}`; `AccountBadge` shows "Reconnect" CTA; `<ReconnectBanner>` renders at top of week view listing affected accounts; cache untouched |
 | Google API 5xx / transient | Retry once with 1s backoff; if still failing, `{status: 'error', reason}` returned; cache untouched; toast in UI |
 | Google API 429 | Exponential backoff up to 3 attempts (1s → 2s → 4s) |
 | Partial sync (one account OK, one fails) | Per-account status reported; successful account's events get replaced; failed account keeps stale cache + warning badge |
