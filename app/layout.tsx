@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "calsync",
   description: "A quiet, unified view of your Google Calendars.",
+  verification: {
+    google: "D7YjfHpA03bMBB9cTN5sCqw4iwJyC9419YMFOcwJZOA",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
