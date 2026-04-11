@@ -4,6 +4,8 @@ import { listEventsInWindow } from "@/lib/db/event-store";
 import { listAccountsForUser } from "@/lib/db/token-store";
 import { logger } from "@/lib/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const userId = await getCurrentUserId();

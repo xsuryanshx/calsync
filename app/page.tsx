@@ -6,6 +6,8 @@ import { listAccountsForUser } from "@/lib/db/token-store";
 import { GoogleSignInButton } from "@/components/AuthButtons";
 import { BrandWordmark } from "@/components/BrandWordmark";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const session = await getCurrentSession();
 

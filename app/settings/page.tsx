@@ -4,6 +4,8 @@ import Link from "next/link";
 import { LogoutButton } from "@/components/AuthButtons";
 import { removeAccountAction } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function SettingsPage() {
   const userId = await requireUserId();
   const accounts = await listAccountsForUser(userId);

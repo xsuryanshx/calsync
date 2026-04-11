@@ -14,6 +14,8 @@ import { LogoutButton, SettingsButton } from "@/components/AuthButtons";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { parseSelectedAccountIds } from "@/lib/ui/account-filter";
 
+export const dynamic = "force-dynamic";
+
 type SearchParams = Promise<{ w?: string; accounts?: string }>;
 
 function formatRange(start: Date, end: Date) {

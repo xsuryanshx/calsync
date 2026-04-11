@@ -7,6 +7,7 @@ import { getCurrentUserId } from "@/lib/auth/session";
 const STATE_COOKIE = "calsync_google_link_state";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const userId = await getCurrentUserId();

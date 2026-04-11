@@ -9,6 +9,8 @@ import {
 } from "@/lib/sync/sync-guard";
 import { logger } from "@/lib/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function POST() {
   try {
     const userId = await getCurrentUserId();
