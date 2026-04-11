@@ -2,6 +2,7 @@ import { requireUserId } from "@/lib/auth/session";
 import { listAccountsForUser } from "@/lib/db/token-store";
 import Link from "next/link";
 import { LogoutButton } from "@/components/AuthButtons";
+import { removeAccountAction } from "./actions";
 
 export default async function SettingsPage() {
   const userId = await requireUserId();
@@ -64,6 +65,17 @@ export default async function SettingsPage() {
                 <span className="ml-auto text-[11px] text-ink-mute">
                   {a.status === "reauth_required" ? "Reconnect needed" : "Active"}
                 </span>
+                <form action={removeAccountAction}>
+                  <input type="hidden" name="accountId" value={a.id} />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-hairline text-[15px] leading-none text-ink-mute transition-colors hover:border-[#d7b7af] hover:text-[#b14c2b]"
+                    aria-label={`Remove ${a.googleEmail}`}
+                    title={`Remove ${a.googleEmail}`}
+                  >
+                    ×
+                  </button>
+                </form>
               </li>
             ))}
           </ul>

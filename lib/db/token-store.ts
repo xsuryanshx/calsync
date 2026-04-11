@@ -170,3 +170,21 @@ export async function markAccountStatus(
     .set({ status, updatedAt: new Date() })
     .where(eq(calendarConnections.id, accountId));
 }
+
+export async function deleteAccountForUser(
+  userId: string,
+  accountId: string,
+): Promise<boolean> {
+  const db = getDb();
+  const deleted = await db
+    .delete(calendarConnections)
+    .where(
+      and(
+        eq(calendarConnections.userId, userId),
+        eq(calendarConnections.id, accountId),
+      ),
+    )
+    .returning({ id: calendarConnections.id });
+
+  return deleted.length > 0;
+}
