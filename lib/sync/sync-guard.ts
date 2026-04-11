@@ -3,6 +3,7 @@ import { getRedis } from "@/lib/redis";
 const USER_LOCK_SECONDS = 90;
 const ACCOUNT_LOCK_SECONDS = 90;
 const MANUAL_SYNC_RATE_LIMIT_SECONDS = 15;
+const AUTO_SYNC_RATE_LIMIT_SECONDS = 60;
 
 export class SyncLockedError extends Error {
   constructor(message = "sync already in progress") {
@@ -25,6 +26,20 @@ export async function enforceManualSyncRateLimit(userId: string): Promise<void> 
   const key = `calsync:sync:manual:${userId}`;
   const result = await redis.set(key, Date.now(), {
     ex: MANUAL_SYNC_RATE_LIMIT_SECONDS,
+    nx: true,
+  });
+  if (result !== "OK") {
+    throw new SyncRateLimitedError();
+  }
+}
+
+export async function enforceAutoSyncRateLimit(userId: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+
+  const key = `calsync:sync:auto:${userId}`;
+  const result = await redis.set(key, Date.now(), {
+    ex: AUTO_SYNC_RATE_LIMIT_SECONDS,
     nx: true,
   });
   if (result !== "OK") {

@@ -1,23 +1,46 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { syncCalendarsAction } from "@/app/actions/sync";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  autoSyncCalendarsAction,
+  syncCalendarsAction,
+} from "@/app/actions/sync";
 
 export function SyncButton() {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [lastResult, setLastResult] = useState<string | null>(null);
+  const didAutoSync = useRef(false);
+
+  const runSync = (mode: "auto" | "manual") => {
+    startTransition(async () => {
+      try {
+        const result =
+          mode === "auto"
+            ? await autoSyncCalendarsAction()
+            : await syncCalendarsAction();
+        const ok = result.perAccount.filter((r) => r.status === "ok").length;
+        setLastResult(`Synced ${ok}/${result.perAccount.length}`);
+        router.refresh();
+      } catch {
+        if (mode === "manual") {
+          setLastResult("Sync failed");
+        }
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (didAutoSync.current) return;
+    didAutoSync.current = true;
+    setLastResult(null);
+    runSync("auto");
+  }, []);
 
   const onClick = () => {
     setLastResult(null);
-    startTransition(async () => {
-      try {
-        const result = await syncCalendarsAction();
-        const ok = result.perAccount.filter((r) => r.status === "ok").length;
-        setLastResult(`Synced ${ok}/${result.perAccount.length}`);
-      } catch {
-        setLastResult("Sync failed");
-      }
-    });
+    runSync("manual");
   };
 
   return (
