@@ -4,6 +4,7 @@ import { listAccountsForUser } from "@/lib/db/token-store";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { startOfWeek, addDays } from "@/lib/time/week";
+import { formatLocalDateKey } from "@/lib/time/local-date";
 import { WeekGrid } from "@/components/WeekGrid";
 import { SyncButton } from "@/components/SyncButton";
 import { AccountBadge } from "@/components/AccountBadge";
@@ -124,7 +125,7 @@ export default async function WeekPage({
           .filter((account) => account.status === "reauth_required")
           .map((account) => account.googleEmail)}
       />
-      <WeekGrid weekStart={weekStart.toISOString()} events={uiEvents} />
+      <WeekGrid weekStart={formatLocalDateKey(weekStart)} events={uiEvents} />
       <footer className="mt-8 text-[11px] text-ink-mute tracking-tight flex items-center justify-between">
         <span>Read-only view. Connect up to any number of Google accounts.</span>
         <Link href="/settings" className="hover:text-ink transition-colors">

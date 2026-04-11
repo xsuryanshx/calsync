@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DayColumn } from "./DayColumn";
 import { AllDayStrip } from "./AllDayStrip";
 import { EventPopover } from "./EventPopover";
+import { parseLocalDateKey } from "@/lib/time/local-date";
 
 export type UIEvent = {
   id: string;
@@ -37,7 +38,7 @@ export function WeekGrid({
   weekStart: string;
   events: UIEvent[];
 }) {
-  const start = new Date(weekStart);
+  const start = parseLocalDateKey(weekStart);
   const [selected, setSelected] = useState<UIEvent | null>(null);
   const today = new Date();
 
