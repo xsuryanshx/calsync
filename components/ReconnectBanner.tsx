@@ -1,22 +1,12 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
 
-export function ReconnectBanner() {
-  const [affected, setAffected] = useState<string[]>([]);
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("calsync:reauth");
-      if (raw) setAffected(JSON.parse(raw));
-    } catch {}
-  }, []);
+export function ReconnectBanner({ affected }: { affected: string[] }) {
   if (affected.length === 0) return null;
   return (
-    <div className="mb-4 p-3 rounded bg-amber-50 border border-amber-200 text-sm text-amber-900 flex items-center justify-between">
+    <div className="mb-4 px-4 py-3 rounded-xl bg-[#fdf2dd] border border-[#ebd9a8] text-[13px] text-[#7a4a0b] flex items-center justify-between">
       <div>
-        One or more Google accounts need to be reconnected:{" "}
-        <span className="font-mono">{affected.join(", ")}</span>
+        One or more accounts need to be reconnected:{" "}
+        <span className="font-mono text-[12px]">{affected.join(", ")}</span>
       </div>
       <Link href="/settings" className="underline font-medium">
         Reconnect

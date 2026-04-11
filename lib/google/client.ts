@@ -3,7 +3,7 @@ import { config } from "@/lib/config";
 import { logger } from "@/lib/logger";
 
 export class ReauthRequired extends Error {
-  constructor(public accountId: number, message = "reauth required") {
+  constructor(public accountId: string, message = "reauth required") {
     super(message);
     this.name = "ReauthRequired";
   }
@@ -17,7 +17,7 @@ export class SyncFailed extends Error {
 }
 
 export type ClientCredentials = {
-  accountId: number;
+  accountId: string;
   refreshToken: string;
   accessToken: string | null;
   accessTokenExpiresAt: Date | null;
@@ -27,6 +27,12 @@ export type ListEventsArgs = {
   timeMin: Date;
   timeMax: Date;
   calendarId?: string;
+};
+
+export type ListEventsResult = {
+  items: calendar_v3.Schema$Event[];
+  accessToken: string | null;
+  accessTokenExpiresAt: Date | null;
 };
 
 export class GoogleCalendarClient {
@@ -45,7 +51,7 @@ export class GoogleCalendarClient {
     return oauth2;
   }
 
-  async listEvents(args: ListEventsArgs): Promise<calendar_v3.Schema$Event[]> {
+  async listEvents(args: ListEventsArgs): Promise<ListEventsResult> {
     const auth = this.buildAuth();
 
     try {
@@ -98,6 +104,17 @@ export class GoogleCalendarClient {
       }
     };
 
-    return attempt(0);
+    const items = await attempt(0);
+    const accessToken = auth.credentials.access_token ?? this.creds.accessToken ?? null;
+    const accessTokenExpiresAt =
+      typeof auth.credentials.expiry_date === "number"
+        ? new Date(auth.credentials.expiry_date)
+        : this.creds.accessTokenExpiresAt;
+
+    return {
+      items,
+      accessToken,
+      accessTokenExpiresAt,
+    };
   }
 }

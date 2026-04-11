@@ -1,15 +1,34 @@
-import { __resetDbForTests } from "@/lib/db/client";
-import { upsertAccount } from "@/lib/db/token-store";
+import { eq } from "drizzle-orm";
+import { __resetDbForTests, getDb } from "@/lib/db/client";
 import { replaceWindow } from "@/lib/db/event-store";
-import { startOfWeek, addDays } from "@/lib/time/week";
+import { upsertAccount } from "@/lib/db/token-store";
+import { users } from "@/lib/db/schema";
+import { addDays, startOfWeek } from "@/lib/time/week";
+
+async function ensureSeedUser(userId: string, email: string) {
+  const db = getDb();
+  const existing = await db.select().from(users).where(eq(users.id, userId));
+  if (existing.length > 0) return existing[0];
+
+  const [inserted] = await db
+    .insert(users)
+    .values({
+      id: userId,
+      email,
+      name: "Seed User",
+      emailVerified: new Date(),
+      image: null,
+    })
+    .returning();
+  return inserted;
+}
 
 async function main() {
   if (!process.env.ENCRYPTION_KEY) {
     process.env.ENCRYPTION_KEY = Buffer.alloc(32, 42).toString("base64");
   }
-  if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = "file:./calsync.db";
-  }
+  process.env.DATABASE_URL ??=
+    "postgresql://postgres:postgres@127.0.0.1:5432/calsync";
   process.env.GOOGLE_CLIENT_ID ??= "stub";
   process.env.GOOGLE_CLIENT_SECRET ??= "stub";
   process.env.NEXTAUTH_SECRET ??= "stub-nextauth-secret";
@@ -17,15 +36,19 @@ async function main() {
 
   __resetDbForTests();
 
-  const a = await upsertAccount({
-    userId: 1,
+  const user = await ensureSeedUser("seed-user", "seed@example.com");
+
+  const primary = await upsertAccount({
+    userId: user.id,
+    googleSub: "google-seed-primary",
     googleEmail: "primary@example.com",
     refreshToken: "stub-refresh-1",
     accessToken: null,
     accessTokenExpiresAt: null,
   });
-  const b = await upsertAccount({
-    userId: 1,
+  const work = await upsertAccount({
+    userId: user.id,
+    googleSub: "google-seed-work",
     googleEmail: "work@example.com",
     refreshToken: "stub-refresh-2",
     accessToken: null,
@@ -64,12 +87,12 @@ async function main() {
     };
   };
 
-  await replaceWindow(a.id, 1, window, [
+  await replaceWindow(primary.id, user.id, window, [
     mkEvent("a1", "Standup", 1, 9, 10),
     mkEvent("a2", "Design sync", 2, 13, 14),
     mkEvent("a3", "1:1 Sarah", 3, 11, 12),
   ]);
-  await replaceWindow(b.id, 1, window, [
+  await replaceWindow(work.id, user.id, window, [
     mkEvent("b1", "CSE 599R", 1, 11, 13),
     mkEvent("b2", "LING 573", 2, 15, 17),
     mkEvent("b3", "Office hours", 4, 10, 11),
@@ -80,7 +103,7 @@ async function main() {
   );
 }
 
-main().catch((e) => {
-  console.error(e);
+main().catch((error) => {
+  console.error(error);
   process.exit(1);
 });

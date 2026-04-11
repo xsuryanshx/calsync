@@ -1,56 +1,53 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { config } from "@/lib/config";
-import { upsertAccount } from "@/lib/db/token-store";
-import { logger } from "@/lib/logger";
+import { getDb } from "@/lib/db/client";
+import {
+  authAccounts,
+  authenticators,
+  sessions,
+  users,
+  verificationTokens,
+} from "@/lib/db/schema";
+import { GOOGLE_CALENDAR_SCOPES } from "@/lib/google/oauth";
 
-export const authConfig: NextAuthConfig = {
-  secret: config.nextAuthSecret,
-  providers: [
-    Google({
-      clientId: config.googleClientId,
-      clientSecret: config.googleClientSecret,
-      authorization: {
-        params: {
-          scope: "openid email https://www.googleapis.com/auth/calendar.readonly",
-          access_type: "offline",
-          prompt: "consent",
-        },
-      },
+export function buildAuthConfig(): NextAuthConfig {
+  return {
+    adapter: DrizzleAdapter(getDb(), {
+      usersTable: users,
+      accountsTable: authAccounts,
+      sessionsTable: sessions,
+      verificationTokensTable: verificationTokens,
+      authenticatorsTable: authenticators,
     }),
-  ],
-  callbacks: {
-    async signIn({ account, profile }) {
-      if (!account || account.provider !== "google") return false;
-      const email = (profile as { email?: string } | undefined)?.email;
-      if (!email) {
-        logger.error("google profile has no email");
-        return false;
-      }
-      if (!account.refresh_token) {
-        logger.error({ email }, "no refresh_token returned — ensure prompt=consent");
-        return false;
-      }
-      try {
-        await upsertAccount({
-          userId: 1,
-          googleEmail: email,
-          refreshToken: account.refresh_token,
-          accessToken: account.access_token ?? null,
-          accessTokenExpiresAt: account.expires_at
-            ? new Date(account.expires_at * 1000)
-            : null,
-        });
-      } catch (err) {
-        logger.error({ err: String(err) }, "failed to persist account");
-        return false;
-      }
-      return "/settings?connected=1";
+    trustHost: true,
+    secret: config.nextAuthSecret,
+    session: {
+      strategy: "database",
     },
-  },
-  pages: {
-    error: "/settings?error=1",
-  },
-};
+    providers: [
+      Google({
+        clientId: config.googleClientId,
+        clientSecret: config.googleClientSecret,
+        authorization: {
+          params: {
+            scope: GOOGLE_CALENDAR_SCOPES.join(" "),
+            access_type: "offline",
+            prompt: "consent select_account",
+          },
+        },
+      }),
+    ],
+    callbacks: {
+      async session({ session, user }) {
+        if (session.user) {
+          session.user.id = user.id;
+        }
+        return session;
+      },
+    },
+  };
+}
 
-export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);
+export const { handlers, signIn, signOut, auth } = NextAuth(() => buildAuthConfig());

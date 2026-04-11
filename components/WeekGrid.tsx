@@ -4,10 +4,12 @@ import { useState } from "react";
 import { DayColumn } from "./DayColumn";
 import { AllDayStrip } from "./AllDayStrip";
 import { EventPopover } from "./EventPopover";
+import { parseLocalDateKey } from "@/lib/time/local-date";
 
 export type UIEvent = {
-  id: number;
-  accountId: number;
+  id: string;
+  accountId: string;
+  accountEmail: string;
   color: string;
   title: string;
   description: string;
@@ -19,8 +21,21 @@ export type UIEvent = {
   hangoutLink: string | null;
 };
 
-const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7am–8pm
+export type EventSelection = {
+  event: UIEvent;
+  anchor: DOMRect;
+};
+
+const HOURS = Array.from({ length: 14 }, (_, i) => i + 7);
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
 
 export function WeekGrid({
   weekStart,
@@ -29,8 +44,13 @@ export function WeekGrid({
   weekStart: string;
   events: UIEvent[];
 }) {
-  const start = new Date(weekStart);
-  const [selected, setSelected] = useState<UIEvent | null>(null);
+  const start = parseLocalDateKey(weekStart);
+  const [selected, setSelected] = useState<EventSelection | null>(null);
+  const today = new Date();
+
+  const handleSelect = (event: UIEvent, anchor: DOMRect) => {
+    setSelected({ event, anchor });
+  };
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start);
@@ -63,36 +83,50 @@ export function WeekGrid({
   });
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-hairline overflow-hidden shadow-[0_1px_0_rgba(26,26,23,0.02),0_20px_50px_-30px_rgba(26,26,23,0.08)]">
       <div
         className="grid"
-        style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}
+        style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
       >
-        <div className="border-b border-slate-200 p-2" />
-        {days.map((d, i) => (
-          <div
-            key={i}
-            className="border-b border-l border-slate-200 p-2 text-center text-sm font-medium"
-          >
-            <div className="text-slate-500 text-xs">{DAY_LABELS[i]}</div>
-            <div className="text-slate-900">{d.getDate()}</div>
-          </div>
-        ))}
+        <div className="border-b border-hairline" />
+        {days.map((d, i) => {
+          const isToday = sameDay(d, today);
+          const isWeekend = i === 0 || i === 6;
+          return (
+            <div
+              key={i}
+              className={`border-b border-l border-hairline-soft px-2 py-3 text-center ${
+                isToday ? "bg-paper-soft/40" : isWeekend ? "bg-paper-soft/20" : ""
+              }`}
+            >
+              <div className="text-[10px] uppercase tracking-[0.14em] text-ink-mute">
+                {DAY_LABELS[i]}
+              </div>
+              <div
+                className={`mt-1 font-serif text-[22px] leading-none ${
+                  isToday ? "text-accent" : "text-ink"
+                }`}
+              >
+                {d.getDate()}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      <AllDayStrip days={days} eventsByDay={allDayByDay} onSelect={setSelected} />
+      <AllDayStrip days={days} eventsByDay={allDayByDay} onSelect={handleSelect} />
 
       <div
         className="grid"
-        style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}
+        style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
       >
         <div className="relative">
           {HOURS.map((h) => (
             <div
               key={h}
-              className="h-14 text-xs text-slate-400 pr-2 text-right pt-0.5"
+              className="h-[60px] text-[10px] uppercase tracking-wider text-ink-mute pr-3 text-right pt-0.5"
             >
-              {(h % 12 || 12) + (h < 12 ? "am" : "pm")}
+              {(h % 12 || 12) + (h < 12 ? "a" : "p")}
             </div>
           ))}
         </div>
@@ -102,12 +136,21 @@ export function WeekGrid({
             day={d}
             hours={HOURS}
             events={eventsByDay[i]}
-            onSelect={setSelected}
+            isToday={sameDay(d, today)}
+            isWeekend={i === 0 || i === 6}
+            selectedId={selected?.event.id ?? null}
+            onSelect={handleSelect}
           />
         ))}
       </div>
 
-      {selected && <EventPopover event={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <EventPopover
+          event={selected.event}
+          anchor={selected.anchor}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }

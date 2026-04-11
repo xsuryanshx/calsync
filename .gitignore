@@ -42,6 +42,8 @@ next-env.d.ts
 
 # local project
 .superpowers/
+.codex/
 calsync.db
 calsync*.db
+calsync.db-*
 test-*.db

@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, ne, asc } from "drizzle-orm";
+import { and, asc, eq, gte, lt, ne } from "drizzle-orm";
 import { getDb } from "./client";
 import { events, type Event } from "./schema";
 
@@ -21,60 +21,51 @@ export type EventInput = {
 
 export type TimeWindow = { start: Date; end: Date };
 
-/**
- * Delete all events for this account whose start is inside [window.start, window.end),
- * then insert the fresh set. Transactional.
- */
 export async function replaceWindow(
-  accountId: number,
-  userId: number,
+  accountId: string,
+  userId: string,
   window: TimeWindow,
   fresh: EventInput[],
 ): Promise<void> {
   const db = getDb();
-  db.transaction((tx) => {
-    tx.delete(events)
-      .where(
-        and(
-          eq(events.accountId, accountId),
-          gte(events.startTs, window.start),
-          lt(events.startTs, window.end),
-        ),
-      )
-      .run();
+
+  await db.transaction(async (tx) => {
+    await tx.delete(events).where(
+      and(
+        eq(events.accountId, accountId),
+        gte(events.startTs, window.start),
+        lt(events.startTs, window.end),
+      ),
+    );
     if (fresh.length === 0) return;
+
     const now = new Date();
-    for (const e of fresh) {
-      tx.insert(events)
-        .values({
-          userId,
-          accountId,
-          googleEventId: e.googleEventId,
-          icalUid: e.icalUid,
-          title: e.title,
-          description: e.description,
-          location: e.location,
-          startTs: e.startTs,
-          endTs: e.endTs,
-          isAllDay: e.isAllDay,
-          tz: e.tz,
-          status: e.status,
-          responseStatus: e.responseStatus,
-          htmlLink: e.htmlLink,
-          hangoutLink: e.hangoutLink,
-          rawJson: e.rawJson,
-          syncedAt: now,
-        })
-        .run();
-    }
+    await tx.insert(events).values(
+      fresh.map((event) => ({
+        userId,
+        accountId,
+        googleEventId: event.googleEventId,
+        icalUid: event.icalUid,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        startTs: event.startTs,
+        endTs: event.endTs,
+        isAllDay: event.isAllDay,
+        tz: event.tz,
+        status: event.status,
+        responseStatus: event.responseStatus,
+        htmlLink: event.htmlLink,
+        hangoutLink: event.hangoutLink,
+        rawJson: event.rawJson,
+        syncedAt: now,
+      })),
+    );
   });
 }
 
-/**
- * List non-declined events for a user in the window, sorted by start time.
- */
 export async function listEventsInWindow(
-  userId: number,
+  userId: string,
   window: TimeWindow,
 ): Promise<Event[]> {
   const db = getDb();
@@ -89,6 +80,5 @@ export async function listEventsInWindow(
         ne(events.responseStatus, "declined"),
       ),
     )
-    .orderBy(asc(events.startTs))
-    .all();
+    .orderBy(asc(events.startTs));
 }
