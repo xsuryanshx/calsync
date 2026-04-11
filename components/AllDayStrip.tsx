@@ -10,7 +10,7 @@ export function AllDayStrip({
 }: {
   days: Date[];
   eventsByDay: UIEvent[][];
-  onSelect: (e: UIEvent) => void;
+  onSelect: (event: UIEvent, anchor: DOMRect) => void;
 }) {
   const hasAny = eventsByDay.some((arr) => arr.length > 0);
   if (!hasAny) return null;
@@ -34,8 +34,15 @@ export function AllDayStrip({
             return (
               <button
                 key={e.id}
-                onClick={() => onSelect(e)}
-                className="block w-full text-left text-[11px] font-medium truncate rounded-[4px] pl-2 pr-1.5 py-[2px] transition-colors"
+                type="button"
+                data-event-block="true"
+                onClick={(ev) =>
+                  onSelect(
+                    e,
+                    (ev.currentTarget as HTMLButtonElement).getBoundingClientRect(),
+                  )
+                }
+                className="block w-full text-left text-[11px] font-medium truncate rounded-[4px] pl-2 pr-1.5 py-[2px] transition-[background-color,box-shadow] hover:shadow-[0_4px_10px_-6px_rgba(26,26,23,0.25)]"
                 style={{
                   backgroundColor: a.bg,
                   color: a.text,

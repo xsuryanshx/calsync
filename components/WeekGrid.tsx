@@ -9,6 +9,7 @@ import { parseLocalDateKey } from "@/lib/time/local-date";
 export type UIEvent = {
   id: string;
   accountId: string;
+  accountEmail: string;
   color: string;
   title: string;
   description: string;
@@ -18,6 +19,11 @@ export type UIEvent = {
   isAllDay: boolean;
   htmlLink: string | null;
   hangoutLink: string | null;
+};
+
+export type EventSelection = {
+  event: UIEvent;
+  anchor: DOMRect;
 };
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7);
@@ -39,8 +45,12 @@ export function WeekGrid({
   events: UIEvent[];
 }) {
   const start = parseLocalDateKey(weekStart);
-  const [selected, setSelected] = useState<UIEvent | null>(null);
+  const [selected, setSelected] = useState<EventSelection | null>(null);
   const today = new Date();
+
+  const handleSelect = (event: UIEvent, anchor: DOMRect) => {
+    setSelected({ event, anchor });
+  };
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start);
@@ -104,7 +114,7 @@ export function WeekGrid({
         })}
       </div>
 
-      <AllDayStrip days={days} eventsByDay={allDayByDay} onSelect={setSelected} />
+      <AllDayStrip days={days} eventsByDay={allDayByDay} onSelect={handleSelect} />
 
       <div
         className="grid"
@@ -128,12 +138,19 @@ export function WeekGrid({
             events={eventsByDay[i]}
             isToday={sameDay(d, today)}
             isWeekend={i === 0 || i === 6}
-            onSelect={setSelected}
+            selectedId={selected?.event.id ?? null}
+            onSelect={handleSelect}
           />
         ))}
       </div>
 
-      {selected && <EventPopover event={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <EventPopover
+          event={selected.event}
+          anchor={selected.anchor}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }

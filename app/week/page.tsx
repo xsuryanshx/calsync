@@ -58,12 +58,16 @@ export default async function WeekPage({
   const colorByAccount = Object.fromEntries(
     accounts.map((a) => [a.id, a.displayColor]),
   );
+  const emailByAccount = Object.fromEntries(
+    accounts.map((a) => [a.id, a.googleEmail]),
+  );
 
   const uiEvents = events
     .filter((event) => selectedAccountIdSet.has(event.accountId))
     .map((e) => ({
       id: e.id,
       accountId: e.accountId,
+      accountEmail: emailByAccount[e.accountId] ?? "",
       color: colorByAccount[e.accountId],
       title: e.title ?? "(no title)",
       description: e.description ?? "",
