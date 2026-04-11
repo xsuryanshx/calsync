@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentSession } from "@/lib/auth/session";
 import { ensurePrimaryCalendarConnectionForUser } from "@/lib/auth/onboarding";
 import { listAccountsForUser } from "@/lib/db/token-store";
@@ -23,8 +24,37 @@ export default async function Home() {
             first calendar account, and merge additional Google calendars into a
             single quiet week view.
           </p>
+          <div className="mt-6 rounded-[22px] bg-paper-soft px-5 py-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-ink-mute">
+              Public app details
+            </p>
+            <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
+              Need the public-facing description for Google verification or a
+              quick privacy review? Start with the app overview and legal pages.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href="/about"
+                className="inline-flex items-center rounded-full border border-hairline bg-white px-4 py-[8px] text-[12px] font-medium text-ink-soft transition-colors hover:border-ink-mute hover:text-ink"
+              >
+                App overview
+              </Link>
+              <Link
+                href="/privacy"
+                className="inline-flex items-center rounded-full border border-hairline bg-white px-4 py-[8px] text-[12px] font-medium text-ink-soft transition-colors hover:border-ink-mute hover:text-ink"
+              >
+                Privacy policy
+              </Link>
+              <Link
+                href="/terms"
+                className="inline-flex items-center rounded-full border border-hairline bg-white px-4 py-[8px] text-[12px] font-medium text-ink-soft transition-colors hover:border-ink-mute hover:text-ink"
+              >
+                Terms
+              </Link>
+            </div>
+          </div>
           <div className="mt-8">
-            <GoogleSignInButton label="Log in with Google" />
+            <GoogleSignInButton label="Sign in with Google" />
           </div>
           <p className="mt-4 text-[11px] text-ink-mute leading-relaxed">
             The first Google account you use to sign in becomes your first
