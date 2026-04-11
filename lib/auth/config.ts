@@ -12,40 +12,42 @@ import {
 } from "@/lib/db/schema";
 import { GOOGLE_CALENDAR_SCOPES } from "@/lib/google/oauth";
 
-export const authConfig: NextAuthConfig = {
-  adapter: DrizzleAdapter(getDb(), {
-    usersTable: users,
-    accountsTable: authAccounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-    authenticatorsTable: authenticators,
-  }),
-  trustHost: true,
-  secret: config.nextAuthSecret,
-  session: {
-    strategy: "database",
-  },
-  providers: [
-    Google({
-      clientId: config.googleClientId,
-      clientSecret: config.googleClientSecret,
-      authorization: {
-        params: {
-          scope: GOOGLE_CALENDAR_SCOPES.join(" "),
-          access_type: "offline",
-          prompt: "consent select_account",
-        },
-      },
+export function buildAuthConfig(): NextAuthConfig {
+  return {
+    adapter: DrizzleAdapter(getDb(), {
+      usersTable: users,
+      accountsTable: authAccounts,
+      sessionsTable: sessions,
+      verificationTokensTable: verificationTokens,
+      authenticatorsTable: authenticators,
     }),
-  ],
-  callbacks: {
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
-      }
-      return session;
+    trustHost: true,
+    secret: config.nextAuthSecret,
+    session: {
+      strategy: "database",
     },
-  },
-};
+    providers: [
+      Google({
+        clientId: config.googleClientId,
+        clientSecret: config.googleClientSecret,
+        authorization: {
+          params: {
+            scope: GOOGLE_CALENDAR_SCOPES.join(" "),
+            access_type: "offline",
+            prompt: "consent select_account",
+          },
+        },
+      }),
+    ],
+    callbacks: {
+      async session({ session, user }) {
+        if (session.user) {
+          session.user.id = user.id;
+        }
+        return session;
+      },
+    },
+  };
+}
 
-export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);
+export const { handlers, signIn, signOut, auth } = NextAuth(() => buildAuthConfig());
