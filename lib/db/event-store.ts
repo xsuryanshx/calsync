@@ -24,13 +24,19 @@ export type TimeWindow = { start: Date; end: Date };
 export async function replaceWindow(
   accountId: string,
   userId: string,
-  _window: TimeWindow,
+  window: TimeWindow,
   fresh: EventInput[],
 ): Promise<void> {
   const db = getDb();
 
   await db.transaction(async (tx) => {
-    await tx.delete(events).where(eq(events.accountId, accountId));
+    await tx.delete(events).where(
+      and(
+        eq(events.accountId, accountId),
+        gte(events.startTs, window.start),
+        lt(events.startTs, window.end),
+      ),
+    );
     if (fresh.length === 0) return;
 
     const now = new Date();

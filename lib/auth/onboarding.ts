@@ -33,12 +33,11 @@ export async function ensurePrimaryCalendarConnectionForUser(
     status: "active",
   });
 
-  await clearGoogleLoginTokensForUser(userId, loginAccount.providerAccountId);
-
   try {
     await withUserSyncLock(userId, async () => {
       await syncUserCalendars(userId, { accountIds: [connection.id] });
     });
+    await clearGoogleLoginTokensForUser(userId, loginAccount.providerAccountId);
   } catch (error) {
     logger.error({ userId, err: String(error) }, "initial calendar sync failed");
   }
