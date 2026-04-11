@@ -13,17 +13,7 @@ export function SyncButton() {
       try {
         const result = await syncCalendarsAction();
         const ok = result.perAccount.filter((r) => r.status === "ok").length;
-        const reauth = result.perAccount
-          .filter((r) => r.status === "reauth_required")
-          .map((r) => r.googleEmail);
-        try {
-          if (reauth.length > 0) {
-            sessionStorage.setItem("calsync:reauth", JSON.stringify(reauth));
-          } else {
-            sessionStorage.removeItem("calsync:reauth");
-          }
-        } catch {}
-        setLastResult(`Synced ${ok}/${result.perAccount.length} accounts`);
+        setLastResult(`Synced ${ok}/${result.perAccount.length}`);
       } catch {
         setLastResult("Sync failed");
       }
@@ -32,13 +22,33 @@ export function SyncButton() {
 
   return (
     <div className="flex items-center gap-3">
-      {lastResult && <span className="text-xs text-slate-500">{lastResult}</span>}
+      {lastResult && (
+        <span className="text-[11px] text-ink-mute tracking-tight">
+          {lastResult}
+        </span>
+      )}
       <button
         onClick={onClick}
         disabled={pending}
-        className="relative px-4 py-2 rounded bg-slate-900 text-white text-sm font-medium disabled:opacity-80 overflow-hidden min-w-[88px]"
+        className="relative inline-flex items-center gap-1.5 px-4 py-[7px] rounded-full bg-ink text-paper text-[12px] font-medium disabled:opacity-90 overflow-hidden min-w-[88px] justify-center hover:bg-[#33332e] transition-colors"
       >
-        <span className={pending ? "opacity-60" : ""}>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={pending ? "animate-spin" : ""}
+          aria-hidden
+        >
+          <path d="M21 12a9 9 0 0 1-15.36 6.36M3 12a9 9 0 0 1 15.36-6.36" />
+          <path d="M21 4v6h-6" />
+          <path d="M3 20v-6h6" />
+        </svg>
+        <span className={pending ? "opacity-80" : ""}>
           {pending ? "Syncing…" : "Sync"}
         </span>
         {pending && (
@@ -46,9 +56,9 @@ export function SyncButton() {
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                "linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)",
+                "linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent)",
               backgroundSize: "200% 100%",
-              animation: "calsync-shimmer 1.2s linear infinite",
+              animation: "calsync-shimmer 1.4s linear infinite",
             }}
           />
         )}

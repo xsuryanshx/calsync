@@ -1,39 +1,41 @@
-import Database from "better-sqlite3";
-import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
-import { sql } from "drizzle-orm";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres, { type Sql } from "postgres";
 import { config } from "@/lib/config";
 import * as schema from "./schema";
-import { users } from "./schema";
-import path from "node:path";
 
-type Db = BetterSQLite3Database<typeof schema>;
+type Db = PostgresJsDatabase<typeof schema>;
 
 let _db: Db | undefined;
-let _migrated = false;
+let _sql: Sql | undefined;
 
 export function getDb(urlOverride?: string): Db {
-  if (_db) return _db;
-  const url = urlOverride ?? config.databaseUrl;
-  const file = url.startsWith("file:") ? url.slice(5) : url;
-  const sqlite = new Database(file);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  _db = drizzle(sqlite, { schema });
-  if (!_migrated) {
-    const migrationsFolder = path.resolve(process.cwd(), "drizzle");
-    migrate(_db, { migrationsFolder });
-    const existing = _db.select().from(users).where(sql`id = 1`).all();
-    if (existing.length === 0) {
-      _db.insert(users).values({ id: 1, email: null, createdAt: new Date() }).run();
-    }
-    _migrated = true;
+  if (_db && !urlOverride) return _db;
+
+  const sql = postgres(urlOverride ?? config.databaseUrl, {
+    max: 1,
+    prepare: false,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
+  const db = drizzle(sql, { schema });
+
+  if (!urlOverride) {
+    _sql = sql;
+    _db = db;
   }
-  return _db;
+
+  return db;
 }
 
-// Test helper: reset singleton
+export async function closeDb(): Promise<void> {
+  if (_sql) {
+    await _sql.end({ timeout: 5 });
+    _sql = undefined;
+    _db = undefined;
+  }
+}
+
 export function __resetDbForTests(): void {
+  _sql = undefined;
   _db = undefined;
-  _migrated = false;
 }

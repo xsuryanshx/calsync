@@ -1,55 +1,50 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { config } from "@/lib/config";
-import { upsertAccount } from "@/lib/db/token-store";
-import { logger } from "@/lib/logger";
+import { getDb } from "@/lib/db/client";
+import {
+  authAccounts,
+  authenticators,
+  sessions,
+  users,
+  verificationTokens,
+} from "@/lib/db/schema";
+import { GOOGLE_CALENDAR_SCOPES } from "@/lib/google/oauth";
 
 export const authConfig: NextAuthConfig = {
+  adapter: DrizzleAdapter(getDb(), {
+    usersTable: users,
+    accountsTable: authAccounts,
+    sessionsTable: sessions,
+    verificationTokensTable: verificationTokens,
+    authenticatorsTable: authenticators,
+  }),
+  trustHost: true,
   secret: config.nextAuthSecret,
+  session: {
+    strategy: "database",
+  },
   providers: [
     Google({
       clientId: config.googleClientId,
       clientSecret: config.googleClientSecret,
       authorization: {
         params: {
-          scope: "openid email https://www.googleapis.com/auth/calendar.readonly",
+          scope: GOOGLE_CALENDAR_SCOPES.join(" "),
           access_type: "offline",
-          prompt: "consent",
+          prompt: "consent select_account",
         },
       },
     }),
   ],
   callbacks: {
-    async signIn({ account, profile }) {
-      if (!account || account.provider !== "google") return false;
-      const email = (profile as { email?: string } | undefined)?.email;
-      if (!email) {
-        logger.error("google profile has no email");
-        return false;
+    async session({ session, user }) {
+      if (session.user) {
+        session.user.id = user.id;
       }
-      if (!account.refresh_token) {
-        logger.error({ email }, "no refresh_token returned — ensure prompt=consent");
-        return false;
-      }
-      try {
-        await upsertAccount({
-          userId: 1,
-          googleEmail: email,
-          refreshToken: account.refresh_token,
-          accessToken: account.access_token ?? null,
-          accessTokenExpiresAt: account.expires_at
-            ? new Date(account.expires_at * 1000)
-            : null,
-        });
-      } catch (err) {
-        logger.error({ err: String(err) }, "failed to persist account");
-        return false;
-      }
-      return "/settings?connected=1";
+      return session;
     },
-  },
-  pages: {
-    error: "/settings?error=1",
   },
 };
 

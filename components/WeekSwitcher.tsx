@@ -1,25 +1,21 @@
 import Link from "next/link";
 
 export function WeekSwitcher({ current }: { current: "this" | "next" }) {
+  const base =
+    "px-3.5 py-[6px] rounded-full text-[12px] font-medium transition-colors";
+  const active = "bg-ink text-paper";
+  const idle = "text-ink-soft hover:text-ink";
   return (
-    <div className="inline-flex rounded border border-slate-200 overflow-hidden text-sm">
+    <div className="inline-flex items-center gap-0.5 rounded-full border border-hairline bg-white p-[3px]">
       <Link
         href="/week"
-        className={`px-3 py-1.5 ${
-          current === "this"
-            ? "bg-slate-900 text-white"
-            : "bg-white text-slate-700 hover:bg-slate-50"
-        }`}
+        className={`${base} ${current === "this" ? active : idle}`}
       >
         This week
       </Link>
       <Link
         href="/week?w=next"
-        className={`px-3 py-1.5 border-l border-slate-200 ${
-          current === "next"
-            ? "bg-slate-900 text-white"
-            : "bg-white text-slate-700 hover:bg-slate-50"
-        }`}
+        className={`${base} ${current === "next" ? active : idle}`}
       >
         Next week
       </Link>

@@ -1,68 +1,203 @@
-import { sqliteTable, integer, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  email: text("email"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+export const users = pgTable("user", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name"),
+  email: text("email").unique(),
+  emailVerified: timestamp("emailVerified", {
+    mode: "date",
+    withTimezone: true,
+  }),
+  image: text("image"),
 });
 
-export const accounts = sqliteTable(
-  "accounts",
+export const authAccounts = pgTable(
+  "account",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    userId: integer("user_id")
+    userId: text("userId")
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").notNull(),
+    provider: text("provider").notNull(),
+    providerAccountId: text("providerAccountId").notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: text("token_type"),
+    scope: text("scope"),
+    id_token: text("id_token"),
+    session_state: text("session_state"),
+  },
+  (table) => ({
+    compositePk: primaryKey({
+      columns: [table.provider, table.providerAccountId],
+    }),
+  }),
+);
+
+export const sessions = pgTable("session", {
+  sessionToken: text("sessionToken").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expires: timestamp("expires", {
+    mode: "date",
+    withTimezone: true,
+  }).notNull(),
+});
+
+export const verificationTokens = pgTable(
+  "verificationToken",
+  {
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: timestamp("expires", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+  },
+  (table) => ({
+    compositePk: primaryKey({
+      columns: [table.identifier, table.token],
+    }),
+  }),
+);
+
+export const authenticators = pgTable(
+  "authenticator",
+  {
+    credentialID: text("credentialID").notNull().unique(),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    providerAccountId: text("providerAccountId").notNull(),
+    credentialPublicKey: text("credentialPublicKey").notNull(),
+    counter: integer("counter").notNull(),
+    credentialDeviceType: text("credentialDeviceType").notNull(),
+    credentialBackedUp: boolean("credentialBackedUp").notNull(),
+    transports: text("transports"),
+  },
+  (table) => ({
+    compositePk: primaryKey({
+      columns: [table.userId, table.credentialID],
+    }),
+  }),
+);
+
+export const calendarConnections = pgTable(
+  "calendar_connection",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    googleSub: text("google_sub").notNull(),
     googleEmail: text("google_email").notNull(),
     encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
     accessToken: text("access_token"),
-    accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp" }),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      mode: "date",
+      withTimezone: true,
+    }),
     displayColor: text("display_color").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", {
+      mode: "date",
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
   },
-  (t) => [uniqueIndex("accounts_user_email_uniq").on(t.userId, t.googleEmail)],
+  (table) => ({
+    userGoogleSubUnique: uniqueIndex("calendar_connection_user_google_sub_uniq").on(
+      table.userId,
+      table.googleSub,
+    ),
+    userCreatedAtIdx: index("calendar_connection_user_created_at_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+  }),
 );
 
-export const events = sqliteTable(
-  "events",
+export const events = pgTable(
+  "calendar_event",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    userId: integer("user_id")
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
       .notNull()
-      .references(() => users.id),
-    accountId: integer("account_id")
+      .references(() => users.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id")
       .notNull()
-      .references(() => accounts.id),
+      .references(() => calendarConnections.id, { onDelete: "cascade" }),
     googleEventId: text("google_event_id").notNull(),
     icalUid: text("ical_uid"),
     title: text("title"),
     description: text("description"),
     location: text("location"),
-    startTs: integer("start_ts", { mode: "timestamp" }).notNull(),
-    endTs: integer("end_ts", { mode: "timestamp" }).notNull(),
-    isAllDay: integer("is_all_day", { mode: "boolean" }).notNull().default(false),
+    startTs: timestamp("start_ts", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    endTs: timestamp("end_ts", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
+    isAllDay: boolean("is_all_day").notNull().default(false),
     tz: text("tz"),
     status: text("status"),
     responseStatus: text("response_status"),
     htmlLink: text("html_link"),
     hangoutLink: text("hangout_link"),
     rawJson: text("raw_json"),
-    syncedAt: integer("synced_at", { mode: "timestamp" }).notNull(),
+    syncedAt: timestamp("synced_at", {
+      mode: "date",
+      withTimezone: true,
+    }).notNull(),
   },
-  (t) => [uniqueIndex("events_account_event_uniq").on(t.accountId, t.googleEventId)],
+  (table) => ({
+    accountEventUnique: uniqueIndex("calendar_event_account_google_event_uniq").on(
+      table.accountId,
+      table.googleEventId,
+    ),
+    userStartIdx: index("calendar_event_user_start_idx").on(
+      table.userId,
+      table.startTs,
+    ),
+  }),
 );
 
-export const syncState = sqliteTable("sync_state", {
-  accountId: integer("account_id")
+export const syncState = pgTable("sync_state", {
+  accountId: uuid("account_id")
     .primaryKey()
-    .references(() => accounts.id),
+    .references(() => calendarConnections.id, { onDelete: "cascade" }),
   lastSyncToken: text("last_sync_token"),
-  lastFullSyncAt: integer("last_full_sync_at", { mode: "timestamp" }),
+  lastFullSyncAt: timestamp("last_full_sync_at", {
+    mode: "date",
+    withTimezone: true,
+  }),
 });
 
 export type User = typeof users.$inferSelect;
-export type Account = typeof accounts.$inferSelect;
-export type NewAccount = typeof accounts.$inferInsert;
+export type AuthAccount = typeof authAccounts.$inferSelect;
+export type Session = typeof sessions.$inferSelect;
+export type CalendarConnection = typeof calendarConnections.$inferSelect;
 export type Event = typeof events.$inferSelect;
-export type NewEvent = typeof events.$inferInsert;

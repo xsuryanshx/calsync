@@ -1,36 +1,52 @@
 "use client";
 
 import type { UIEvent } from "./WeekGrid";
+import { accentFor } from "@/lib/ui/palette";
 
 export function EventBlock({
   event,
   top,
   height,
+  left,
+  right,
   onClick,
 }: {
   event: UIEvent;
   top: number;
   height: number;
+  left: string;
+  right: string;
   onClick: () => void;
 }) {
+  const a = accentFor(event.color);
+  const compact = height < 34;
+  const time = new Date(event.start).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
   return (
     <button
       onClick={onClick}
-      className="absolute left-1 right-1 rounded px-1.5 py-0.5 text-xs text-white text-left truncate hover:brightness-110"
+      className="group absolute rounded-[5px] pl-2 pr-1.5 py-[3px] text-[11px] text-left overflow-hidden transition-[background-color,transform] duration-150 ease-out hover:-translate-y-[0.5px]"
       style={{
         top,
         height,
-        backgroundColor: event.color,
+        left,
+        right,
+        backgroundColor: a.bg,
+        color: a.text,
+        borderLeft: `2.5px solid ${a.stripe}`,
       }}
-      title={event.title}
+      title={`${event.title} · ${time}`}
     >
-      <div className="font-medium truncate">{event.title}</div>
-      <div className="opacity-90 text-[10px] truncate">
-        {new Date(event.start).toLocaleTimeString([], {
-          hour: "numeric",
-          minute: "2-digit",
-        })}
+      <div className="font-semibold truncate leading-[1.15] tracking-[-0.005em]">
+        {event.title}
       </div>
+      {!compact && (
+        <div className="text-[10px] truncate leading-tight mt-[1px] opacity-75">
+          {time}
+        </div>
+      )}
     </button>
   );
 }

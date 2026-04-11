@@ -1,21 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUserId } from "@/lib/auth/session";
 import { listEventsInWindow } from "@/lib/db/event-store";
 import { listAccountsForUser } from "@/lib/db/token-store";
 import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   try {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     if (!from || !to) {
       return NextResponse.json({ error: "from and to required" }, { status: 400 });
     }
-    const events = await listEventsInWindow(1, {
+    const events = await listEventsInWindow(userId, {
       start: new Date(from),
       end: new Date(to),
     });
-    const accounts = await listAccountsForUser(1);
+    const accounts = await listAccountsForUser(userId);
     const colorByAccount = Object.fromEntries(
       accounts.map((a) => [a.id, a.displayColor]),
     );

@@ -1,56 +1,87 @@
+import { requireUserId } from "@/lib/auth/session";
 import { listAccountsForUser } from "@/lib/db/token-store";
-import { signIn } from "@/lib/auth/config";
 import Link from "next/link";
+import { LogoutButton } from "@/components/AuthButtons";
 
 export default async function SettingsPage() {
-  const accounts = await listAccountsForUser(1);
-  return (
-    <main className="max-w-2xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        {accounts.length > 0 && (
-          <Link href="/week" className="text-sm text-blue-600 hover:underline">
-            ← Week view
-          </Link>
-        )}
-      </div>
+  const userId = await requireUserId();
+  const accounts = await listAccountsForUser(userId);
+  const reauthAccounts = accounts.filter((account) => account.status === "reauth_required");
 
-      <section className="mb-8">
-        <h2 className="text-lg font-medium mb-3">Connected Google Accounts</h2>
-        {accounts.length === 0 && (
-          <p className="text-slate-500 mb-4">No accounts connected yet.</p>
-        )}
-        <ul className="space-y-2 mb-4">
-          {accounts.map((a) => (
-            <li
-              key={a.id}
-              className="flex items-center gap-3 p-3 bg-white rounded border border-slate-200"
+  return (
+    <main className="max-w-2xl mx-auto px-8 py-12">
+      <header className="flex items-end justify-between mb-10 pb-6 border-b border-hairline">
+        <div>
+          <h1 className="font-serif italic text-[44px] leading-[0.9] text-ink tracking-tight">
+            Settings
+          </h1>
+          <p className="text-[12px] text-ink-mute mt-2 uppercase tracking-[0.14em]">
+            Connected accounts
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          {accounts.length > 0 && (
+            <Link
+              href="/week"
+              className="text-[12px] text-ink-soft hover:text-ink transition-colors"
             >
-              <span
-                className="inline-block w-3 h-3 rounded-full"
-                style={{ backgroundColor: a.displayColor }}
-              />
-              <span className="font-mono text-sm">{a.googleEmail}</span>
-            </li>
-          ))}
-        </ul>
-        <form
-          action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: "/settings?connected=1" });
-          }}
+              ← Back to week
+            </Link>
+          )}
+          <LogoutButton />
+        </div>
+      </header>
+
+      <section>
+        {reauthAccounts.length > 0 && (
+          <div className="mb-5 rounded-xl border border-[#ebd9a8] bg-[#fdf2dd] px-4 py-3 text-[12px] text-[#7a4a0b] leading-relaxed">
+            Some accounts need to be reconnected. Choose the same Google account
+            again to refresh its access.
+          </div>
+        )}
+        {accounts.length === 0 ? (
+          <p className="text-[14px] text-ink-soft mb-6 leading-relaxed">
+            No accounts connected yet. Authorize read-only access to each
+            Google Calendar you&apos;d like to see in the unified view.
+          </p>
+        ) : (
+          <ul className="space-y-2 mb-6">
+            {accounts.map((a) => (
+              <li
+                key={a.id}
+                className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-hairline"
+              >
+                <span
+                  className="inline-block w-[9px] h-[9px] rounded-full ring-[3px] ring-white"
+                  style={{
+                    backgroundColor: a.displayColor,
+                    boxShadow: `0 0 0 1px ${a.displayColor}33`,
+                  }}
+                />
+                <span className="text-[13px] text-ink tracking-tight">
+                  {a.googleEmail}
+                </span>
+                <span className="ml-auto text-[11px] text-ink-mute">
+                  {a.status === "reauth_required" ? "Reconnect needed" : "Active"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <a
+          href="/api/google/link"
+          className="inline-flex items-center gap-2 px-5 py-[9px] bg-ink text-paper rounded-full text-[13px] font-medium hover:bg-[#33332e] transition-colors"
         >
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Connect Google Account
-          </button>
-        </form>
-        <p className="text-xs text-slate-500 mt-3">
-          You&apos;ll be redirected to Google to authorize read-only calendar access.
-          Repeat this step to connect a second account (sign out of the first in
-          Google).
+          <span className="text-[15px] leading-none">+</span>
+          {accounts.length === 0
+            ? "Connect Google Account"
+            : "Add another account"}
+        </a>
+        <p className="text-[11px] text-ink-mute mt-4 leading-relaxed max-w-md">
+          Google&apos;s account picker will appear — choose the account you
+          want to connect. You can add as many as you like; each gets its own
+          color on the week view.
         </p>
       </section>
     </main>

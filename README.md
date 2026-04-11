@@ -1,56 +1,96 @@
 # calsync
 
-Personal unified view of two Google Calendar accounts. Read-only, local-first, manual-sync.
+Private multi-user calendar dashboard for Google Calendar. Users sign in with Google, their first Google account is auto-linked on onboarding, they can add more Google accounts later, and they get a unified read-only week view with manual sync.
 
-## One-time setup
+## Stack
+
+- Next.js 16 App Router
+- Auth.js v5 with Google
+- Drizzle ORM
+- Postgres for app/auth/event storage
+- Upstash Redis for sync locking and rate limiting
+- Google Calendar API (`calendar.readonly`)
+
+## Local setup
 
 ### 1. Google Cloud OAuth client
 
-1. Go to https://console.cloud.google.com/ → new project
-2. Enable **Google Calendar API**
-3. APIs & Services → OAuth consent screen → External, fill the minimums, add both your Gmail addresses as **Test users**
-4. APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID (type: **Web application**)
-5. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
-6. Copy Client ID + Client Secret
+1. Go to https://console.cloud.google.com/ and create a project.
+2. Enable the Google Calendar API.
+3. Configure the OAuth consent screen.
+4. Create an OAuth 2.0 Client ID for a Web application.
+5. Add these redirect URIs:
+   - `http://localhost:3000/api/auth/callback/google`
+   - `http://localhost:3000/api/google/callback`
 
 ### 2. Environment variables
 
 ```bash
 cp .env.local.example .env.local
 
-# Generate random secrets for NEXTAUTH_SECRET and ENCRYPTION_KEY:
-openssl rand -base64 32
-openssl rand -base64 32
+openssl rand -base64 32   # NEXTAUTH_SECRET
+openssl rand -base64 32   # ENCRYPTION_KEY
 ```
 
-Fill in `.env.local` with the two secrets and the Google Client ID/Secret.
+Fill in `.env.local` with:
 
-### 3. Install and run
+- Google client ID and secret
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL=http://localhost:3000`
+- a Postgres `DATABASE_URL`
+- optional Upstash Redis credentials for local sync locking
+
+Important: the old `file:./calsync.db` SQLite URL will not work on this branch anymore.
+
+### 3. Install dependencies
 
 ```bash
 npm install
-npm run db:generate   # first run only
+```
+
+### 4. Generate the migration
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+### 5. Run the app
+
+```bash
 npm run dev
 ```
 
-Open http://localhost:3000 — you'll be redirected to `/settings`. Click "Connect Google Account", authorize, then repeat for your second Google account (sign out of the first in Google first).
+Open [http://localhost:3000](http://localhost:3000), sign in with Google, and the sign-in Google account will be auto-linked and synced. Add more Google accounts from `/settings`.
 
-## Usage
+## Vercel deployment
 
-- `/week` — unified week grid
-- `/settings` — connect/reconnect Google accounts
-- **Sync button** — pulls the latest events from both accounts
+1. Create a Vercel project for this repo.
+2. Attach a Postgres database and copy its `DATABASE_URL`.
+3. Attach Upstash Redis and copy:
+   - `UPSTASH_REDIS_REST_URL`
+   - `UPSTASH_REDIS_REST_TOKEN`
+4. Add all required env vars in Vercel.
+5. In Google Cloud, add production redirect URIs:
+   - `https://YOUR_DOMAIN/api/auth/callback/google`
+   - `https://YOUR_DOMAIN/api/google/callback`
 
-## Development
+The build uses `next build --webpack` to avoid a Turbopack CSS worker issue we hit locally during production verification.
+
+## Development checks
 
 ```bash
-npm test              # vitest
-npm run test:watch
-npm run seed          # stub accounts + fake events for UI dev without OAuth
+npm test
+npm run lint
+npm run build
 ```
 
-## Architecture
+## Core behavior
 
-See `docs/superpowers/specs/2026-04-10-calsync-design.md` for the full design and `docs/superpowers/plans/2026-04-10-calsync.md` for the implementation plan.
-
-Local phase uses SQLite; production will swap to Postgres via Drizzle by changing `DATABASE_URL`. The domain layer (`lib/sync/sync-user.ts`) is a pure function callable from a cron without refactor.
+- `/` is public and starts Google sign-in.
+- `/week` and `/settings` require an authenticated app session.
+- The sign-in Google account is auto-provisioned as the first linked calendar connection.
+- Additional Google accounts are linked through `/api/google/link`.
+- A successful new connection triggers an immediate first sync.
+- Later syncs are manual through the existing Sync button.
+- All event reads are scoped to the authenticated user.

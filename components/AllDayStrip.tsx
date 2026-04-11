@@ -1,6 +1,7 @@
 "use client";
 
 import type { UIEvent } from "./WeekGrid";
+import { accentFor } from "@/lib/ui/palette";
 
 export function AllDayStrip({
   days,
@@ -15,26 +16,37 @@ export function AllDayStrip({
   if (!hasAny) return null;
   return (
     <div
-      className="grid border-b border-slate-200 bg-slate-50"
-      style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}
+      className="grid border-b border-hairline bg-paper-soft/50"
+      style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
     >
-      <div className="text-xs text-slate-400 pr-2 text-right pt-1">all-day</div>
+      <div className="text-[10px] uppercase tracking-[0.1em] text-ink-mute pr-3 pt-2 text-right">
+        all-day
+      </div>
       {days.map((_, i) => (
         <div
           key={i}
-          className="border-l border-slate-200 p-1 min-h-[32px] space-y-1"
+          className={`border-l border-hairline-soft p-1 min-h-[30px] space-y-[3px] ${
+            i === 0 || i === 6 ? "bg-paper-soft/20" : ""
+          }`}
         >
-          {eventsByDay[i].map((e) => (
-            <button
-              key={e.id}
-              onClick={() => onSelect(e)}
-              className="block w-full text-left text-xs truncate rounded px-1.5 py-0.5 text-white hover:brightness-110"
-              style={{ backgroundColor: e.color }}
-              title={e.title}
-            >
-              {e.title}
-            </button>
-          ))}
+          {eventsByDay[i].map((e) => {
+            const a = accentFor(e.color);
+            return (
+              <button
+                key={e.id}
+                onClick={() => onSelect(e)}
+                className="block w-full text-left text-[11px] font-medium truncate rounded-[4px] pl-2 pr-1.5 py-[2px] transition-colors"
+                style={{
+                  backgroundColor: a.bg,
+                  color: a.text,
+                  borderLeft: `2px solid ${a.stripe}`,
+                }}
+                title={e.title}
+              >
+                {e.title}
+              </button>
+            );
+          })}
         </div>
       ))}
     </div>

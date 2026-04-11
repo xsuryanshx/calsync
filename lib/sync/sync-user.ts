@@ -1,4 +1,9 @@
-import { listAccountsForUser, getDecryptedRefreshToken } from "@/lib/db/token-store";
+import {
+  getDecryptedRefreshToken,
+  listAccountsForUser,
+  markAccountStatus,
+  updateAccessToken,
+} from "@/lib/db/token-store";
 import { replaceWindow } from "@/lib/db/event-store";
 import {
   GoogleCalendarClient,
@@ -7,11 +12,12 @@ import {
 } from "@/lib/google/client";
 import { mapGoogleEvent } from "@/lib/google/map";
 import { logger } from "@/lib/logger";
+import { withAccountSyncLock } from "./sync-guard";
 
 export type PerAccountResult =
-  | { accountId: number; googleEmail: string; status: "ok"; eventCount: number }
-  | { accountId: number; googleEmail: string; status: "reauth_required" }
-  | { accountId: number; googleEmail: string; status: "error"; reason: string };
+  | { accountId: string; googleEmail: string; status: "ok"; eventCount: number }
+  | { accountId: string; googleEmail: string; status: "reauth_required" }
+  | { accountId: string; googleEmail: string; status: "error"; reason: string };
 
 export type SyncResult = {
   syncedAt: Date;
@@ -29,43 +35,68 @@ export function defaultWindow(now = new Date()): { start: Date; end: Date } {
 }
 
 export async function syncUserCalendars(
-  userId: number,
-  window?: { start: Date; end: Date },
+  userId: string,
+  options?: {
+    window?: { start: Date; end: Date };
+    accountIds?: string[];
+  },
 ): Promise<SyncResult> {
   const accounts = await listAccountsForUser(userId);
-  const syncWindow = window ?? defaultWindow();
+  const targetIds = options?.accountIds;
+  const accountsToSync = targetIds
+    ? accounts.filter((account) => targetIds.includes(account.id))
+    : accounts;
+  const syncWindow = options?.window ?? defaultWindow();
 
   const perAccount = await Promise.all(
-    accounts.map(async (a): Promise<PerAccountResult> => {
+    accountsToSync.map(async (account): Promise<PerAccountResult> => {
       try {
-        const refreshToken = await getDecryptedRefreshToken(a.id);
-        const client = new GoogleCalendarClient({
-          accountId: a.id,
-          refreshToken,
-          accessToken: a.accessToken ?? null,
-          accessTokenExpiresAt: a.accessTokenExpiresAt ?? null,
+        return await withAccountSyncLock(account.id, async () => {
+          const refreshToken = await getDecryptedRefreshToken(account.id);
+          const client = new GoogleCalendarClient({
+            accountId: account.id,
+            refreshToken,
+            accessToken: account.accessToken ?? null,
+            accessTokenExpiresAt: account.accessTokenExpiresAt ?? null,
+          });
+          const raw = await client.listEvents({
+            timeMin: syncWindow.start,
+            timeMax: syncWindow.end,
+          });
+          const mapped = raw.items.map(mapGoogleEvent);
+          await replaceWindow(account.id, userId, syncWindow, mapped);
+
+          if (raw.accessToken && raw.accessTokenExpiresAt) {
+            await updateAccessToken(
+              account.id,
+              raw.accessToken,
+              raw.accessTokenExpiresAt,
+            );
+          }
+
+          await markAccountStatus(account.id, "active");
+          return {
+            accountId: account.id,
+            googleEmail: account.googleEmail,
+            status: "ok",
+            eventCount: mapped.length,
+          };
         });
-        const raw = await client.listEvents({
-          timeMin: syncWindow.start,
-          timeMax: syncWindow.end,
-        });
-        const mapped = raw.map(mapGoogleEvent);
-        await replaceWindow(a.id, userId, syncWindow, mapped);
-        return {
-          accountId: a.id,
-          googleEmail: a.googleEmail,
-          status: "ok",
-          eventCount: mapped.length,
-        };
       } catch (err) {
         if (err instanceof ReauthRequired) {
-          logger.warn({ accountId: a.id }, "reauth required");
-          return { accountId: a.id, googleEmail: a.googleEmail, status: "reauth_required" };
+          logger.warn({ accountId: account.id }, "reauth required");
+          await markAccountStatus(account.id, "reauth_required");
+          return {
+            accountId: account.id,
+            googleEmail: account.googleEmail,
+            status: "reauth_required",
+          };
         }
-        logger.error({ accountId: a.id, err: String(err) }, "sync failed");
+
+        logger.error({ accountId: account.id, err: String(err) }, "sync failed");
         return {
-          accountId: a.id,
-          googleEmail: a.googleEmail,
+          accountId: account.id,
+          googleEmail: account.googleEmail,
           status: "error",
           reason: err instanceof SyncFailed ? err.reason : String(err),
         };
