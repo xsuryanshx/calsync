@@ -11,6 +11,7 @@ import { AccountBadge } from "@/components/AccountBadge";
 import { ReconnectBanner } from "@/components/ReconnectBanner";
 import { WeekSwitcher } from "@/components/WeekSwitcher";
 import { LogoutButton, SettingsButton } from "@/components/AuthButtons";
+import { BrandWordmark } from "@/components/BrandWordmark";
 import { parseSelectedAccountIds } from "@/lib/ui/account-filter";
 
 type SearchParams = Promise<{ w?: string; accounts?: string }>;
@@ -76,11 +77,8 @@ export default async function WeekPage({
     <main className="max-w-[1400px] mx-auto px-8 py-10">
       <header className="flex items-end justify-between mb-8 pb-6 border-b border-hairline gap-6 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
-          <h1
-            className="text-2xl font-semibold leading-none"
-            style={{ fontFamily: "Arial, Helvetica, sans-serif", color: "#171717" }}
-          >
-            calsync
+          <h1 className="leading-none">
+            <BrandWordmark href="/week" size="header" />
           </h1>
           <div className="hidden sm:block">
             <div className="text-[10px] uppercase tracking-[0.16em] text-ink-mute">

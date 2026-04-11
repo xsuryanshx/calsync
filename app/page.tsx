@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/lib/auth/session";
 import { ensurePrimaryCalendarConnectionForUser } from "@/lib/auth/onboarding";
 import { listAccountsForUser } from "@/lib/db/token-store";
 import { GoogleSignInButton } from "@/components/AuthButtons";
+import { BrandWordmark } from "@/components/BrandWordmark";
 
 export default async function Home() {
   const session = await getCurrentSession();
@@ -14,8 +15,8 @@ export default async function Home() {
           <p className="text-[11px] uppercase tracking-[0.18em] text-ink-mute mb-4">
             Private calendar cockpit
           </p>
-          <h1 className="font-serif italic text-[52px] leading-[0.9] text-ink tracking-tight">
-            calsync
+          <h1>
+            <BrandWordmark />
           </h1>
           <p className="mt-5 text-[15px] leading-relaxed text-ink-soft max-w-lg">
             Sign in with Google to create your private workspace, auto-link your
