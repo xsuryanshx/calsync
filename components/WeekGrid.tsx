@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { DayColumn } from "./DayColumn";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { DayColumn, HOUR_HEIGHT } from "./DayColumn";
 import { AllDayStrip } from "./AllDayStrip";
 import { EventPopover } from "./EventPopover";
 import { parseLocalDateKey } from "@/lib/time/local-date";
@@ -26,8 +26,10 @@ export type EventSelection = {
   anchor: DOMRect;
 };
 
-const HOURS = Array.from({ length: 14 }, (_, i) => i + 7);
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const INITIAL_SCROLL_HOUR = 8;
+const DEFAULT_VISIBLE_HOURS = 12;
 
 function sameDay(a: Date, b: Date) {
   return (
@@ -46,17 +48,40 @@ export function WeekGrid({
 }) {
   const start = parseLocalDateKey(weekStart);
   const [selected, setSelected] = useState<EventSelection | null>(null);
-  const today = new Date();
+  const [now, setNow] = useState(() => new Date());
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const handleSelect = (event: UIEvent, anchor: DOMRect) => {
     setSelected({ event, anchor });
   };
 
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+  const days = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        return d;
+      }),
+    [weekStart],
+  );
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = INITIAL_SCROLL_HOUR * HOUR_HEIGHT;
+  }, [weekStart]);
+
+  useEffect(() => {
+    const tick = () => setNow(new Date());
+    tick();
+    const intervalId = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const todayIndex = days.findIndex((day) => sameDay(day, now));
+  const currentTimeTop =
+    todayIndex === -1
+      ? null
+      : ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_HEIGHT;
 
   const eventsByDay: UIEvent[][] = days.map((d) => {
     const dayStart = new Date(d);
@@ -85,12 +110,12 @@ export function WeekGrid({
   return (
     <div className="bg-white rounded-xl border border-hairline overflow-hidden shadow-[0_1px_0_rgba(26,26,23,0.02),0_20px_50px_-30px_rgba(26,26,23,0.08)]">
       <div
-        className="grid"
+        className="grid bg-white"
         style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
       >
         <div className="border-b border-hairline" />
         {days.map((d, i) => {
-          const isToday = sameDay(d, today);
+          const isToday = sameDay(d, now);
           const isWeekend = i === 0 || i === 6;
           return (
             <div
@@ -117,31 +142,44 @@ export function WeekGrid({
       <AllDayStrip days={days} eventsByDay={allDayByDay} onSelect={handleSelect} />
 
       <div
-        className="grid"
-        style={{ gridTemplateColumns: "64px repeat(7, 1fr)" }}
+        ref={scrollRef}
+        className="overflow-y-auto overscroll-contain"
+        style={{ height: DEFAULT_VISIBLE_HOURS * HOUR_HEIGHT }}
       >
-        <div className="relative">
-          {HOURS.map((h) => (
-            <div
-              key={h}
-              className="h-[60px] text-[10px] uppercase tracking-wider text-ink-mute pr-3 text-right pt-0.5"
-            >
-              {(h % 12 || 12) + (h < 12 ? "a" : "p")}
-            </div>
+        <div
+          className="grid min-w-0"
+          style={{ gridTemplateColumns: "64px repeat(7, minmax(0, 1fr))" }}
+        >
+          <div className="relative bg-white">
+            {HOURS.map((h) => (
+              <div
+                key={h}
+                className="relative pr-3 text-right text-[10px] uppercase tracking-wider text-ink-mute"
+                style={{ height: HOUR_HEIGHT }}
+              >
+                <span className="absolute right-3 top-0.5">
+                  {h === 0 ? "12a" : (h % 12 || 12) + (h < 12 ? "a" : "p")}
+                </span>
+                {h < 23 && (
+                  <span className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-hairline-soft/70" />
+                )}
+              </div>
+            ))}
+          </div>
+          {days.map((d, i) => (
+            <DayColumn
+              key={i}
+              day={d}
+              hours={HOURS}
+              events={eventsByDay[i]}
+              isToday={sameDay(d, now)}
+              isWeekend={i === 0 || i === 6}
+              selectedId={selected?.event.id ?? null}
+              onSelect={handleSelect}
+              currentTimeTop={todayIndex === i ? currentTimeTop : null}
+            />
           ))}
         </div>
-        {days.map((d, i) => (
-          <DayColumn
-            key={i}
-            day={d}
-            hours={HOURS}
-            events={eventsByDay[i]}
-            isToday={sameDay(d, today)}
-            isWeekend={i === 0 || i === 6}
-            selectedId={selected?.event.id ?? null}
-            onSelect={handleSelect}
-          />
-        ))}
       </div>
 
       {selected && (

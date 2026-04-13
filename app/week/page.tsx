@@ -130,11 +130,8 @@ export default async function WeekPage({
           .map((account) => account.googleEmail)}
       />
       <WeekGrid weekStart={formatLocalDateKey(weekStart)} events={uiEvents} />
-      <footer className="mt-8 text-[11px] text-ink-mute tracking-tight flex items-center justify-between">
-        <span>Read-only view. Connect up to any number of Google accounts.</span>
-        <Link href="/settings" className="hover:text-ink transition-colors">
-          Settings →
-        </Link>
+      <footer className="mt-8 text-[11px] text-ink-mute tracking-tight">
+        Read-only view. Connect up to any number of Google accounts.
       </footer>
     </main>
   );
