@@ -5,6 +5,22 @@ import type { CSSProperties } from "react";
 import type { UIEvent } from "./WeekGrid";
 import { accentFor } from "@/lib/ui/palette";
 
+function formatTimeRange(start: Date, end: Date): string {
+  const startPeriod = start.getHours() < 12 ? "am" : "pm";
+  const endPeriod = end.getHours() < 12 ? "am" : "pm";
+  const samePeriod = startPeriod === endPeriod;
+
+  const fmt = (d: Date, showPeriod: boolean) => {
+    const h = d.getHours() % 12 || 12;
+    const m = d.getMinutes();
+    const min = m > 0 ? `:${m.toString().padStart(2, "0")}` : "";
+    const period = showPeriod ? (d.getHours() < 12 ? "am" : "pm") : "";
+    return `${h}${min}${period}`;
+  };
+
+  return `${fmt(start, !samePeriod)} – ${fmt(end, true)}`;
+}
+
 export function EventBlock({
   event,
   top,
@@ -27,10 +43,7 @@ export function EventBlock({
   const ref = useRef<HTMLButtonElement>(null);
   const a = accentFor(event.color);
   const compact = height < 34;
-  const time = new Date(event.start).toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const time = formatTimeRange(new Date(event.start), new Date(event.end));
 
   const selectedShadow = `0 16px 32px -16px ${a.stripe}b3, 0 0 0 1.5px ${a.stripe}`;
 

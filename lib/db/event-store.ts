@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, lt, ne } from "drizzle-orm";
+import { and, asc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { getDb } from "./client";
 import { events, type Event } from "./schema";
 
@@ -40,27 +40,48 @@ export async function replaceWindow(
     if (fresh.length === 0) return;
 
     const now = new Date();
-    await tx.insert(events).values(
-      fresh.map((event) => ({
-        userId,
-        accountId,
-        googleEventId: event.googleEventId,
-        icalUid: event.icalUid,
-        title: event.title,
-        description: event.description,
-        location: event.location,
-        startTs: event.startTs,
-        endTs: event.endTs,
-        isAllDay: event.isAllDay,
-        tz: event.tz,
-        status: event.status,
-        responseStatus: event.responseStatus,
-        htmlLink: event.htmlLink,
-        hangoutLink: event.hangoutLink,
-        rawJson: event.rawJson,
-        syncedAt: now,
-      })),
-    );
+    await tx
+      .insert(events)
+      .values(
+        fresh.map((event) => ({
+          userId,
+          accountId,
+          googleEventId: event.googleEventId,
+          icalUid: event.icalUid,
+          title: event.title,
+          description: event.description,
+          location: event.location,
+          startTs: event.startTs,
+          endTs: event.endTs,
+          isAllDay: event.isAllDay,
+          tz: event.tz,
+          status: event.status,
+          responseStatus: event.responseStatus,
+          htmlLink: event.htmlLink,
+          hangoutLink: event.hangoutLink,
+          rawJson: event.rawJson,
+          syncedAt: now,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [events.accountId, events.googleEventId],
+        set: {
+          icalUid: sql`excluded.ical_uid`,
+          title: sql`excluded.title`,
+          description: sql`excluded.description`,
+          location: sql`excluded.location`,
+          startTs: sql`excluded.start_ts`,
+          endTs: sql`excluded.end_ts`,
+          isAllDay: sql`excluded.is_all_day`,
+          tz: sql`excluded.tz`,
+          status: sql`excluded.status`,
+          responseStatus: sql`excluded.response_status`,
+          htmlLink: sql`excluded.html_link`,
+          hangoutLink: sql`excluded.hangout_link`,
+          rawJson: sql`excluded.raw_json`,
+          syncedAt: sql`excluded.synced_at`,
+        },
+      });
   });
 }
 
